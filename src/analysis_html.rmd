@@ -5,8 +5,6 @@ date: "July 6, 2022"
 output: html_notebook
 ---
 
-***
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, fig.width=12, fig.height=8, fig.align='center')
 ```
@@ -19,6 +17,53 @@ library(table1)
 # load data from data_prep.R
 d.all <- read.csv("/Users/ryan/test_analysis/day_trading/data/output_data.csv")
 ```
+
+***
+
+```{r}
+#########################################################
+## summary stats
+#########################################################
+
+# overall summary stats
+total_trades <- nrow(d.all)
+total_win <- sum(d.all$win_lose == "Win")
+total_loss <- sum(d.all$win_lose == "Lose")
+win_perc <- round(100 * total_win / total_trades, 2)
+trade_time_avg <- round(mean(d.all$Trade_time), 2)
+
+# wins in a row
+streak_win <- 0
+streak_win_max <- 0
+streak_loss <- 0
+streak_loss_max <- 0
+
+for(i in seq_len(nrow(d.all) - 1)){
+  if(d.all$win_lose[i] == "Win"){
+    streak_win <- streak_win + 1
+    if(streak_win > streak_win_max){
+      streak_win_max <- streak_win
+    }
+  }else{
+    streak_win <- 0
+  }
+
+  if(d.all$win_lose[i] == "Lose"){
+    streak_loss <- streak_loss + 1
+    if(streak_loss > streak_loss_max){
+      streak_loss_max <- streak_loss
+    }
+  }else{
+    streak_loss <- 0
+  }
+}
+```
+
+|  Total Trades   | Total Wins  | Total Losses | Percent Won  |    Win Streak     |    Loss Streak     | Avg Trade Time (min) |
+|:---------------:|:-----------:|:------------:|:------------:|:-----------------:|:------------------:|:--------------------:|
+|`r total_trades` |`r total_win`|`r total_loss`|`r win_perc`% |`r streak_win_max` |`r streak_loss_max` | `r trade_time_avg`   |
+
+***
 
 ```{r}
 #########################################################
@@ -57,37 +102,94 @@ table1(~ win_lose + Trade_time | Strategy * Book, topclass = "Rtable1-zebra",
 ## plot profit and drawdown
 #########################################################
 
+# check for places where profit_cum crosses over zero and add in a zero point to data frame
+# this is required for creating a smooth graph using geom_ribbon
+d.plot <- select(d.all, Trade_num, Profit_cum, Drawdown)
+for(i in seq_len(nrow(d.plot) - 1)){
+  if((d.plot$Profit_cum[i] > 0 & d.plot$Profit_cum[i+1] < 0) | (d.plot$Profit_cum[i] < 0 & d.plot$Profit_cum[i+1] > 0)){
+    d.plot <- rbind(d.plot,
+                    data.frame(Trade_num = i + 0.49, Profit_cum = 0.01,  Drawdown = d.plot$Drawdown[i]),
+                    data.frame(Trade_num = i + 0.51, Profit_cum = -0.01, Drawdown = d.plot$Drawdown[i]))
+  }
+}
+
 # add variables
-d.all <- mutate(d.all,
+d.plot <- arrange(d.plot, Trade_num) %>%
 
-                # convert drawdown to points for plotting
-                Drawdown_plot = max(d.all$Profit_cum) - d.all$Drawdown,
+  # convert drawdown to points for plotting
+  mutate(Drawdown_plot = max(Profit_cum) - Drawdown,
 
-                # pos/neg profit factor
-                Profit_factor = factor(if_else(Profit_cum >= 0, "Pos", "Neg")))
+         # pos/neg profit factor
+         Profit_factor = factor(if_else(Profit_cum >= 0, "Pos", "Neg")))
 
 # plot profit and drawdown
-ggplot(d.all, aes(Trade_num, Profit_cum)) +
+ggplot(d.plot, aes(Trade_num, Profit_cum)) +
 
-        # profit fill and plot
-        geom_area(aes(fill = Profit_factor), alpha = 0.4) +
-        geom_line(aes(color = Profit_factor)) +
+  # profit fill and plot
+  geom_area(aes(fill = Profit_factor), alpha = 0.4) +
+  geom_line(aes(color = Profit_factor)) +
 
-        # drawdown plot and fill
-        geom_ribbon(aes(x = Trade_num, ymin = Drawdown_plot, ymax = max(Profit_cum)), fill = "purple", alpha = 0.4) +
-        geom_line(data = d.all, aes(Trade_num, Drawdown_plot), color = "purple") +
+  # drawdown plot and fill
+  geom_ribbon(aes(x = Trade_num, ymin = Drawdown_plot, ymax = max(Profit_cum)), fill = "purple", alpha = 0.4) +
+  geom_line(aes(Trade_num, Drawdown_plot), color = "purple") +
 
-        # adjust theme
-        theme_bw() +
-        theme(legend.position = "none") +
+  # adjust theme
+  theme_bw() +
+  theme(legend.position = "none") +
 
-        # add labels
-        xlab("Number of Trades") +
-        ylab("Profit") +
-        ggtitle("Overall Profit and Drawdown")
+  # add labels
+  xlab("Number of Trades") +
+  ylab("Profit") +
+  ggtitle("Overall Profit and Drawdown")
 
 
 ```
 
+***
 
+```{r}
+#########################################################
+## plot Profit and loss by hour of the day
+#########################################################
 
+# summarize profits and losses by hour
+group_by(d.all, Hour, win_lose) %>%
+  summarise(Profit_sum = abs(sum(Profit))) %>%
+
+  # bar plot
+  ggplot(aes(x = Hour, y = Profit_sum, fill = win_lose)) +
+  geom_bar(stat = 'identity', position = 'dodge', alpha = 0.8) +
+
+  # adjust theme
+  theme_bw() +
+  theme(legend.title = element_blank()) +
+
+  # change titles/labels
+  ggtitle("Profits and Losses by Hour") +
+  ylab("Total Profit/Loss")
+
+```
+
+***
+```{r}
+#########################################################
+## plot Profit and loss by day of the week
+#########################################################
+
+# calculate total profit/loss by day of week
+group_by(d.all, Weekdays, win_lose) %>%
+  summarise(Profit_total = abs(sum(Profit))) %>%
+  mutate(Weekdays = factor(Weekdays, levels = c("Sunday","Monday","Tuesday","Wednesday","Thursday","Friday"))) %>%
+
+  # plot profit and loss
+  ggplot(aes(x = Weekdays, y = Profit_total, fill = win_lose)) +
+  geom_bar(stat = 'identity', position = 'dodge', alpha = 0.8) +
+
+  # adjust theme
+  theme_bw() +
+  theme(legend.title = element_blank()) +
+
+  # add titles
+  ggtitle("Profits and Losses by Day of the Week") +
+  ylab("Total Profit/Loss")
+```
