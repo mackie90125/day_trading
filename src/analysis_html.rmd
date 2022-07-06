@@ -1,0 +1,93 @@
+---
+title: "Day Trading Analysis"
+author: "Ryan Mackie"
+date: "July 6, 2022"
+output: html_notebook
+---
+
+***
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, fig.width=12, fig.height=8, fig.align='center')
+```
+
+```{r}
+# load libraries
+library(tidyverse)
+library(table1)
+
+# load data from data_prep.R
+d.all <- read.csv("/Users/ryan/test_analysis/day_trading/data/output_data.csv")
+```
+
+```{r}
+#########################################################
+## summary tables
+#########################################################
+
+# create individual tables for each strategy and merge into one
+d.2 <- filter(d.all, Strategy_2 == 1) %>%
+  mutate(Strategy = 2)
+d.9 <- filter(d.all, Strategy_9 == 1) %>%
+  mutate(Strategy = 9)
+d.24 <- filter(d.all, Strategy_24 == 1) %>%
+  mutate(Strategy = 24)
+d.36 <- filter(d.all, Strategy_36 == 1) %>%
+  mutate(Strategy = 36)
+d.37 <- filter(d.all, Strategy_37 == 1) %>%
+  mutate(Strategy = 37)
+d.38 <- filter(d.all, Strategy_38 == 1) %>%
+  mutate(Strategy = 38)
+d.strategy <- bind_rows(d.2, d.9, d.24, d.36, d.37, d.38) %>%
+  mutate(Strategy = factor(Strategy))
+
+# add labeles to variables
+label(d.strategy$win_lose) <- "Outcome"
+label(d.strategy$Trade_time) <- "Time in Trade (min.)"
+
+# table of win/lose counts and time in trade by strategy
+table1(~ win_lose + Trade_time | Strategy * Book, topclass = "Rtable1-zebra",
+       data = d.strategy)
+```
+
+***
+
+```{r}
+#########################################################
+## plot profit and drawdown
+#########################################################
+
+# add variables
+d.all <- mutate(d.all,
+
+                # convert drawdown to points for plotting
+                Drawdown_plot = max(d.all$Profit_cum) - d.all$Drawdown,
+
+                # pos/neg profit factor
+                Profit_factor = factor(if_else(Profit_cum >= 0, "Pos", "Neg")))
+
+# plot profit and drawdown
+ggplot(d.all, aes(Trade_num, Profit_cum)) +
+
+        # profit fill and plot
+        geom_area(aes(fill = Profit_factor), alpha = 0.4) +
+        geom_line(aes(color = Profit_factor)) +
+
+        # drawdown plot and fill
+        geom_ribbon(aes(x = Trade_num, ymin = Drawdown_plot, ymax = max(Profit_cum)), fill = "purple", alpha = 0.4) +
+        geom_line(data = d.all, aes(Trade_num, Drawdown_plot), color = "purple") +
+
+        # adjust theme
+        theme_bw() +
+        theme(legend.position = "none") +
+
+        # add labels
+        xlab("Number of Trades") +
+        ylab("Profit") +
+        ggtitle("Overall Profit and Drawdown")
+
+
+```
+
+
+

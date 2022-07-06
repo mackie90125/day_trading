@@ -69,7 +69,7 @@ sort(unique(d.all$Strategy))
 
 # create flag variables for each strategy
 d.all <- mutate(d.all,
-                Strategy_2 = if_else(grepl("^2.*", Strategy), 1, 0),
+                Strategy_2 = if_else(grepl("(^2$|^2_.+)", Strategy), 1, 0),
                 Strategy_9 = if_else(grepl("(^9.*|.+_9.*)", Strategy), 1, 0),
                 Strategy_24 = if_else(grepl("(^24.*|.+_24.*)", Strategy), 1, 0),
                 Strategy_36 = if_else(grepl("(^36.*|.+_36.*)", Strategy), 1, 0),
@@ -85,7 +85,7 @@ d.all <- mutate(d.all,
 # calculate draw-down
 max.profit <- 0
 v.drawdown <- NULL
-for(i in 1:nrow(d.all)){
+for(i in seq_len(nrow(d.all))){
 
   profit.current <- d.all$Profit_cum[i]
 
@@ -97,3 +97,6 @@ for(i in 1:nrow(d.all)){
   }
 }
 d.all$Drawdown <- v.drawdown
+
+# save data
+write.csv(d.all, "/Users/ryan/test_analysis/day_trading/data/output_data.csv", row.names = FALSE)
