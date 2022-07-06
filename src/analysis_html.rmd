@@ -59,9 +59,9 @@ for(i in seq_len(nrow(d.all) - 1)){
 }
 ```
 
-|  Total Trades   | Total Wins  | Total Losses | Percent Won  |    Win Streak     |    Loss Streak     | Avg Trade Time (min) |
-|:---------------:|:-----------:|:------------:|:------------:|:-----------------:|:------------------:|:--------------------:|
-|`r total_trades` |`r total_win`|`r total_loss`|`r win_perc`% |`r streak_win_max` |`r streak_loss_max` | `r trade_time_avg`   |
+|   Total Trades   |  Total Wins   |  Total Losses  |  Percent Won  |     Win Streak     |     Loss Streak     | Avg Trade Time (min) |
+|:----------------:|:-------------:|:--------------:|:-------------:|:------------------:|:-------------------:|:--------------------:|
+| `r total_trades` | `r total_win` | `r total_loss` | `r win_perc`% | `r streak_win_max` | `r streak_loss_max` |  `r trade_time_avg`  |
 
 ***
 
