@@ -7,7 +7,7 @@ library(tidyverse)
 library(lubridate)
 
 # read in raw data
-file.original <- "/Users/ryan/test_analysis/day_trading/data/raw_data_example.csv"
+file.original <- "/Users/ryan/test_analysis/day_trading/data/raw_data_strategy.csv"
 d.original <- read.csv(file.original)
 
 # data structure
